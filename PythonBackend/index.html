@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cosmic Particle Universe</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            overflow: hidden;
+            background: #000;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        canvas {
+            display: block;
+            cursor: crosshair;
+        }
+        
+        .ui-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            pointer-events: none;
+            z-index: 10;
+        }
+        
+        .title {
+            position: absolute;
+            top: 40px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: #fff;
+            font-size: 48px;
+            font-weight: 700;
+            text-shadow: 0 0 20px rgba(138, 43, 226, 0.8),
+                         0 0 40px rgba(0, 191, 255, 0.6);
+            animation: glow 2s ease-in-out infinite alternate;
+            letter-spacing: 4px;
+        }
+        
+        @keyframes glow {
+            from {
+                text-shadow: 0 0 20px rgba(138, 43, 226, 0.8),
+                             0 0 40px rgba(0, 191, 255, 0.6);
+            }
+            to {
+                text-shadow: 0 0 30px rgba(138, 43, 226, 1),
+                             0 0 60px rgba(0, 191, 255, 0.8),
+                             0 0 80px rgba(255, 0, 255, 0.4);
+            }
+        }
+        
+        .controls {
+            position: absolute;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 15px;
+            pointer-events: all;
+        }
+        
+        .btn {
+            padding: 12px 24px;
+            background: rgba(138, 43, 226, 0.2);
+            border: 2px solid rgba(138, 43, 226, 0.6);
+            color: #fff;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            border-radius: 25px;
+            backdrop-filter: blur(10px);
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .btn:hover {
+            background: rgba(138, 43, 226, 0.4);
+            border-color: rgba(138, 43, 226, 1);
+            box-shadow: 0 0 20px rgba(138, 43, 226, 0.6);
+            transform: translateY(-2px);
+        }
+        
+        .btn:active {
+            transform: translateY(0);
+        }
+        
+        .info {
+            position: absolute;
+            top: 120px;
+            left: 30px;
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 14px;
+            line-height: 1.8;
+            background: rgba(0, 0, 0, 0.3);
+            padding: 20px;
+            border-radius: 10px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(138, 43, 226, 0.3);
+        }
+        
+        .info strong {
+            color: #fff;
+            text-shadow: 0 0 10px rgba(138, 43, 226, 0.8);
+        }
+    </style>
+</head>
+<body>
+    <canvas id="canvas"></canvas>
+    
+    <div class="ui-overlay">
+        <div class="title">COSMIC UNIVERSE</div>
+        
+        <div class="info">
+            <strong>🎮 Controls:</strong><br>
+            Move mouse to attract particles<br>
+            Click to create explosion<br>
+            Watch the cosmic dance!
+        </div>
+        
+        <div class="controls">
+            <button class="btn" onclick="toggleGravity()">Toggle Gravity</button>
+            <button class="btn" onclick="changeColors()">New Colors</button>
+            <button class="btn" onclick="addParticles()">More Particles</button>
+            <button class="btn" onclick="reset()">Reset</button>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+        
+        let particles = [];
+        let mouse = { x: canvas.width / 2, y: canvas.height / 2, active: false };
+        let gravityEnabled = true;
+        let colorScheme = 0;
+        
+        const colorSchemes = [
+            ['#8A2BE2', '#00BFFF', '#FF00FF', '#00FFFF'],
+            ['#FF1493', '#FFD700', '#00FF00', '#FF4500'],
+            ['#FF0080', '#7B68EE', '#00CED1', '#FF69B4'],
+            ['#32CD32', '#FF6347', '#1E90FF', '#FFD700']
+        ];
+        
+        class Particle {
+            constructor(x, y) {
+                this.x = x;
+                this.y = y;
+                this.vx = (Math.random() - 0.5) * 4;
+                this.vy = (Math.random() - 0.5) * 4;
+                this.radius = Math.random() * 3 + 1;
+                this.color = colorSchemes[colorScheme][Math.floor(Math.random() * colorSchemes[colorScheme].length)];
+                this.life = 1;
+                this.decay = Math.random() * 0.002 + 0.001;
+            }
+            
+            update() {
+                if (gravityEnabled && mouse.active) {
+                    const dx = mouse.x - this.x;
+                    const dy = mouse.y - this.y;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    const force = Math.min(100 / (dist * dist), 0.5);
+                    
+                    this.vx += dx * force * 0.01;
+                    this.vy += dy * force * 0.01;
+                }
+                
+                this.vx *= 0.99;
+                this.vy *= 0.99;
+                
+                this.x += this.vx;
+                this.y += this.vy;
+                
+                if (this.x < 0 || this.x > canvas.width) this.vx *= -0.8;
+                if (this.y < 0 || this.y > canvas.height) this.vy *= -0.8;
+                
+                this.x = Math.max(0, Math.min(canvas.width, this.x));
+                this.y = Math.max(0, Math.min(canvas.height, this.y));
+                
+                this.life -= this.decay;
+            }
+            
+            draw() {
+                ctx.save();
+                ctx.globalAlpha = this.life;
+                
+                const gradient = ctx.createRadialGradient(this.x, this.y, 0, this.x, this.y, this.radius * 2);
+                gradient.addColorStop(0, this.color);
+                gradient.addColorStop(1, 'transparent');
+                
+                ctx.fillStyle = gradient;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius * 2, 0, Math.PI * 2);
+                ctx.fill();
+                
+                ctx.fillStyle = this.color;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                ctx.fill();
+                
+                ctx.restore();
+            }
+        }
+        
+        function init() {
+            particles = [];
+            for (let i = 0; i < 300; i++) {
+                particles.push(new Particle(
+                    Math.random() * canvas.width,
+                    Math.random() * canvas.height
+                ));
+            }
+        }
+        
+        function drawConnections() {
+            for (let i = 0; i < particles.length; i++) {
+                for (let j = i + 1; j < particles.length; j++) {
+                    const dx = particles[i].x - particles[j].x;
+                    const dy = particles[i].y - particles[j].y;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    
+                    if (dist < 150) {
+                        ctx.save();
+                        ctx.globalAlpha = (1 - dist / 150) * 0.3 * particles[i].life * particles[j].life;
+                        ctx.strokeStyle = particles[i].color;
+                        ctx.lineWidth = 0.5;
+                        ctx.beginPath();
+                        ctx.moveTo(particles[i].x, particles[i].y);
+                        ctx.lineTo(particles[j].x, particles[j].y);
+                        ctx.stroke();
+                        ctx.restore();
+                    }
+                }
+            }
+        }
+        
+        function animate() {
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.1)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            drawConnections();
+            
+            particles = particles.filter(p => p.life > 0);
+            
+            particles.forEach(particle => {
+                particle.update();
+                particle.draw();
+            });
+            
+            if (particles.length < 200 && Math.random() < 0.1) {
+                particles.push(new Particle(
+                    Math.random() * canvas.width,
+                    Math.random() * canvas.height
+                ));
+            }
+            
+            requestAnimationFrame(animate);
+        }
+        
+        function createExplosion(x, y) {
+            for (let i = 0; i < 50; i++) {
+                const p = new Particle(x, y);
+                const angle = (Math.PI * 2 * i) / 50;
+                const speed = Math.random() * 5 + 5;
+                p.vx = Math.cos(angle) * speed;
+                p.vy = Math.sin(angle) * speed;
+                particles.push(p);
+            }
+        }
+        
+        canvas.addEventListener('mousemove', (e) => {
+            mouse.x = e.clientX;
+            mouse.y = e.clientY;
+            mouse.active = true;
+        });
+        
+        canvas.addEventListener('mouseleave', () => {
+            mouse.active = false;
+        });
+        
+        canvas.addEventListener('click', (e) => {
+            createExplosion(e.clientX, e.clientY);
+        });
+        
+        window.addEventListener('resize', () => {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        });
+        
+        function toggleGravity() {
+            gravityEnabled = !gravityEnabled;
+        }
+        
+        function changeColors() {
+            colorScheme = (colorScheme + 1) % colorSchemes.length;
+            particles.forEach(p => {
+                p.color = colorSchemes[colorScheme][Math.floor(Math.random() * colorSchemes[colorScheme].length)];
+            });
+        }
+        
+        function addParticles() {
+            for (let i = 0; i < 100; i++) {
+                particles.push(new Particle(
+                    Math.random() * canvas.width,
+                    Math.random() * canvas.height
+                ));
+            }
+        }
+        
+        function reset() {
+            init();
+        }
+        
+        init();
+        animate();
+    </script>
+</body>
+</html>
