@@ -3,14 +3,14 @@ import React, { useEffect, useState, useCallback } from 'react'
 import { StatusBar } from 'expo-status-bar'
 import {
 	StyleSheet,
-	Text,
 	View,
-	FlatList,
-	ActivityIndicator,
 	Image,
+	FlatList,
 	Platform,
-	RefreshControl
+	RefreshControl,
+	Pressable
 } from 'react-native'
+import { Text, ActivityIndicator, Portal, Dialog } from 'react-native-paper';
 
 // Page Stack
 // 1. Show All Robots (GET /robots)
@@ -92,10 +92,13 @@ export default function App() {
 				}
 				renderItem={({ item }) => (
 					<View style={styles.card}>
-						{!!item.imageUrl && (
+						{item.imageUrl && (
 							<Image source={{ uri: item.imageUrl }} style={styles.avatar} />
 						)}
-						<View style={{ flex: 1 }}>
+						<Pressable
+							style={{ flex: 1 }}
+							onPress={ () => router.push(`/single/${item.id}`) }				
+						>
 							<Text style={styles.name}>{item.name}</Text>
 							<Text style={styles.desc}>{item.description}</Text>
 							{'price' in item && (
@@ -103,7 +106,7 @@ export default function App() {
 									${Number(item.price).toFixed(2)}
 								</Text>
 							)}
-						</View>
+						</Pressable>
 					</View>
 				)}
 				ListEmptyComponent={<Text style={styles.mono}>No robots found.</Text>}
