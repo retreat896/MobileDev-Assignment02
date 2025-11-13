@@ -85,29 +85,29 @@ export default function App () {
 		<View style={styles.container}>
 		    <Text style={styles.title}>Robots</Text>
 		    <FlatList
-			data={robots}
-			keyExtractor={(item, idx) => String(item.id ?? item._id ?? idx)}
-			refreshControl={
-			    <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-			}
-			renderItem={({ item }) => (
-			    <View style={styles.card}>
-				{!!item.imageUrl && (
-				    <Image source={{ uri: item.imageUrl }} style={styles.avatar} />
+				data={robots}
+				keyExtractor={(item, idx) => String(item.id ?? item._id ?? idx)}
+				refreshControl={
+			    	<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+				}
+				renderItem={({ item }) => (
+				    <View style={styles.card}>
+					{!!item.imageUrl && (
+					    <Image source={{ uri: item.imageUrl }} style={styles.avatar} />
+					)}
+					<View style={{ flex: 1 }}>
+					    <Text style={styles.name}>{item.name}</Text>
+					    <Text style={styles.desc}>{item.description}</Text>
+					    {'price' in item && (
+						<Text style={styles.price}>
+						    ${Number(item.price).toFixed(2)}
+						</Text>
+					    )}
+					</View>
+				    </View>
 				)}
-				<View style={{ flex: 1 }}>
-				    <Text style={styles.name}>{item.name}</Text>
-				    <Text style={styles.desc}>{item.description}</Text>
-				    {'price' in item && (
-					<Text style={styles.price}>
-					    ${Number(item.price).toFixed(2)}
-					</Text>
-				    )}
-				</View>
-			    </View>
-			)}
-			ListEmptyComponent={<Text style={styles.mono}>No robots found.</Text>}
-			contentContainerStyle={{ paddingBottom: 24 }}
+				ListEmptyComponent={<Text style={styles.mono}>No robots found.</Text>}
+				contentContainerStyle={{ paddingBottom: 24 }}
 		    />
 		    <StatusBar style='auto' />
 		</View>
