@@ -11,7 +11,6 @@ import {
   StyleSheet,
   ActivityIndicator
 } from 'react-native'
-import { BASE_URL } from './config'
 
 export default function EditRobot () {
   console.log('BASE_URL loaded:', BASE_URL) // <-- Add this line
