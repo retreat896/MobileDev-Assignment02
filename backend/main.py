@@ -6,8 +6,12 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from pathlib import Path
 from pydantic import BaseModel
+from dotenv import *
+import os
 
-uri = "mongodb+srv://krus:KrustyPassword@mycluster.7qdmbzp.mongodb.net/" # Mongo URI
+print("Loaded dotenv: ", load_dotenv(find_dotenv(".env")))
+
+uri = os.getenv("DB_LINK") # Mongo URI
 client = MongoClient(uri)
 db = client["MyDB"] # Database name
 collection = db["MyCollection"] # Collection name
@@ -78,7 +82,6 @@ def post_robot(robot: Robot):
     try: 
         collection.insert_one(robot.dict())
         return {"message": "Robot added successfully"}
-        print("todo")
     except PyMongoError as e:
         print("Database error:", e)
         raise HTTPException(status_code=503, detail="Database not reachable")
