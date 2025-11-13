@@ -11,6 +11,7 @@ import {
 	Pressable
 } from 'react-native'
 import { Text, ActivityIndicator, Portal, Dialog } from 'react-native-paper';
+import { useRouter } from 'expo-router';
 
 // Page Stack
 // 1. Show All Robots (GET /robots)
@@ -30,6 +31,7 @@ export default function App() {
 	const [loading, setLoading] = useState(true)
 	const [err, setErr] = useState('')
 	const [refreshing, setRefreshing] = useState(false)
+	const router = useRouter();
 
 	const fetchRobots = async () => {
 		try {
@@ -82,7 +84,7 @@ export default function App() {
 	}
 
 	return (
-		<View style={styles.container}>
+		<View>
 			<Text style={styles.title}>Robots</Text>
 			<FlatList
 				data={robots}
@@ -97,7 +99,12 @@ export default function App() {
 						)}
 						<Pressable
 							style={{ flex: 1 }}
-							onPress={ () => router.push(`/single/${item.id}`) }				
+							onPress={ () => {
+								router.push({
+									pathname: "single",
+									params: { id: item.id }
+								});
+							}}			
 						>
 							<Text style={styles.name}>{item.name}</Text>
 							<Text style={styles.desc}>{item.description}</Text>
@@ -123,7 +130,6 @@ const styles = StyleSheet.create({
 		backgroundColor: '#2b2b2bff',
 		paddingTop: 60,
 		paddingHorizontal: 16,
-		color: '#ffffff'
 	},
 	center: {
 		flex: 1,
@@ -134,8 +140,7 @@ const styles = StyleSheet.create({
 	title: {
 		fontSize: 28,
 		fontWeight: '700',
-		marginBottom: 16,
-		color: '#ffffff'
+		marginBottom: 16
 	},
 	card: {
 		flexDirection: 'row',
@@ -144,20 +149,20 @@ const styles = StyleSheet.create({
 		padding: 12,
 		borderRadius: 12,
 		marginBottom: 12,
+		marginHorizontal:10,
 		elevation: 2,
 		shadowColor: '#000',
 		shadowOpacity: 0.08,
 		shadowRadius: 6,
 		shadowOffset: { width: 0, height: 2 },
-		color: '#ffffff'
 	},
 	avatar: { width: 64, height: 64, borderRadius: 12, backgroundColor: '#eee' },
 	name: { fontSize: 18, fontWeight: '700' },
-	desc: { color: '#ffffffff', marginTop: 2 },
+	desc: { marginTop: 2 },
 	price: { marginTop: 6, fontWeight: '700' },
 	mono: {
 		fontFamily: Platform.select({ ios: 'Menlo', android: 'monospace' }),
 		marginTop: 8
 	},
-	help: { marginTop: 10, textAlign: 'center', color: '#ffffffff' }
+	help: { marginTop: 10, textAlign: 'center' }
 })
