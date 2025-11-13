@@ -56,9 +56,25 @@ def get_robots():
         print("Unexpected error:", e)
         raise HTTPException(status_code=500, detail="Internal server error")
 
+@app.get("/robot/{name}")
+def get_robot(name: str):
+    try:
+        # Trim whitespace and try to find the robot
+        name = name.strip()
+        existing = collection.find_one({"name": name})
+        if not existing:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Robot not found")
 
-@app.post("/robots", status_code=status.HTTP_201_CREATED)
-def post_robots(robot: Robot):
+        return existing
+    except PyMongoError as e:
+        print("Database Error: ", e)
+        raise HTTPException(status_code=503, detail="Database not reachable")
+    except Exception as e:
+        print("Unexpected Error: ", e)
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+@app.post("/robot", status_code=status.HTTP_201_CREATED)
+def post_robot(robot: Robot):
     try: 
         collection.insert_one(robot.dict())
         return {"message": "Robot added successfully"}
@@ -70,3 +86,38 @@ def post_robots(robot: Robot):
         print("Unexpected error:", e)
         raise HTTPException(status_code=500, detail="Internal server error")
 
+@app.put("/robot/{name}", status_code=status.HTTP_204_NO_CONTENT)
+def put_robots(name: str, robot: Robot):
+    try:
+        # Trim whitespace and try to find the robot
+        name = name.strip()
+        existing = collection.find_one({"name": name})
+        if not existing:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Robot not found")
+        # Only update price, description, imageUrl
+        updates = {
+            "price": robot.price,
+            "description": robot.description,
+            "imageUrl": robot.imageUrl
+        }
+        collection.update_one({"name": name}, {"$set": updates})
+        return {"message": "Robot updated successfully"}
+    except PyMongoError as e:
+        print("Database Error: ", e)
+        raise HTTPException(status_code=503, detail="Database not reachable")
+    except Exception as e:
+        print("Unexpected Error: ", e)
+        raise HTTPException(status_code=500, detail="Internal serve error")
+
+@app.delete("/robots", status_code=status.HTTP_204_NO_CONTENT)
+def delete_robots(robot: Robot):
+    try:
+        collection.delete_one(None)
+        return { "message": "Robot deleted successfully" }
+    except PyMongoError as e:
+        print("Database Error: ", e)
+        raise HTTPException(status_code=503, detail="Database not reachable")
+    except Exception as e:
+        print("Unexpected Error: ", e)
+        raise HTTPException(status_code=500, detail="Internal serve error")
+    
