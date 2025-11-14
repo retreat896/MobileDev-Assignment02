@@ -1,6 +1,7 @@
 import { BASE_URL } from './config'
 import React, { useEffect, useState, useCallback } from 'react'
 import { StatusBar } from 'expo-status-bar'
+
 import {
 	StyleSheet,
 	View,
@@ -34,6 +35,8 @@ export default function Single() {
 	const [refreshing, setRefreshing] = useState(false);
 	const [willUpdate, setUpdate] = useState(false);
 	const [willDelete, setDelete] = useState(false);
+
+
 	
 	const showToast = (message) => {
     	ToastAndroid.show(`${message}`, ToastAndroid.SHORT);
@@ -53,35 +56,36 @@ export default function Single() {
 		}
 	}
 
+	
+
 	const updateRobot = async () => {
 		try {
-			console.log("Robot:");
-			console.log(JSON.stringify({
-					id:robot.id,
-					name:robot.name,
-					price: robot.price,
-					description: robot.description,
-					imageUrl: robot.imageUrl
-			 }))
+			const options = {
+  				method: 'PUT',
+				headers: {
+					'Content-Type': 'application/json',
+					// 'Accept': '*/*'
+				},
+				body: JSON.stringify({
+					name: String(robot.name),
+					description: String(robot.description),
+					price: parseFloat(robot.price),
+					imageUrl: String(robot.imageUrl),
+					id: parseInt(robot.id)
+				})
+			};
+
+			console.log("OPTIONS");
+			console.log(options);
 			setError('');
 			// Call update from the API
-			const res = await fetch(`${BASE_URL}/robot`, {
-				method: 'PUT',
-				    headers: { "Content-Type": "application/json" },
-
-				body: JSON.stringify({
-					"id": parseInt(robot.id),
-					"name": robot.name,
-					"price": parseFloat(robot.price),
-					"description": robot.description,
-					"imageUrl": robot.imageUrl
-			 })
-			});
+			const res = await fetch(`${BASE_URL}/robot`, options);
 			if (!res.ok) throw new Error(`HTTP ${res.status}`);
 			const data = await res.json();
 			setRobot(data);
 			setUpdate(false); // Close the update menu
 			showToast("Robot Updated Successfully!");
+			router.replace(`/single?id=${robot.id}`);
 		}
 		catch (e) {
 			setError(String(e));
@@ -159,10 +163,10 @@ export default function Single() {
 					<Portal>
 						<Dialog visible={willUpdate}>
 							<Dialog.Content>
-								<TextInput label="Name" value={robot.name} onChangeText={ (t) => { setRobot({ ...robot, name: t }) } }/>
-								<TextInput label="Description" value={robot.description} onChangeText={ (t) => { setRobot({ ...robot, description: t }) } }/>
-								<TextInput label="Price" value={`${robot.price}`} onChangeText={ (t) => { setRobot({ price: t }) } }/>
-								<TextInput label="Image URL" textContentType="URL" value={robot.imageUrl} onChangeText={ (t) => { setRobot({ ...robot, imageUrl: t }) } }/>
+								<TextInput label="Name" value={robot.name} onChangeText={ (t) => { setRobot(prev => ({ ...prev, name: t })) } }/>
+								<TextInput label="Description" value={robot.description} onChangeText={ (t) => { setRobot(prev => ({ ...prev, description: t })) } }/>
+								<TextInput label="Price" value={`${robot.price}`} onChangeText={ (t) => { setRobot(prev => ({ ...prev, price: t })) } }/>
+								<TextInput label="Image URL" textContentType="URL" value={robot.imageUrl} onChangeText={ (t) => { setRobot(prev => ({ ...prev, imageUrl: t })) } }/>
 							</Dialog.Content>
 							<Dialog.Actions>
 								{/* Confirm Button */}
@@ -178,16 +182,11 @@ export default function Single() {
 				{ !willDelete && !willUpdate && <Button onPress={ () => setUpdate(true) }>Update</Button> }
 				{/* Delete Button */}
 				{ !willDelete && !willUpdate && <Button onPress={ () => setDelete(true) }>Delete</Button> }
+				{/* ¯\_(ツ)_/¯ */}
 				{/* Confirm Button */}
-				{ willDelete || willUpdate && <Button onPress={ () => {
-					if (willDelete) deleteRobot();
-					if (willUpdate) updateRobot();
-				}}>Confirm</Button> }
+				{ willDelete && <Button mode='outlined' onPress={ deleteRobot }>Confirm</Button> }
 				{/* Cancel Button */}
-				{ willDelete || willUpdate && <Button onPress={ () => {
-					if (willDelete) setDelete(false);
-					if (willUpdate) setUpdate(false);
-				}}>Cancel</Button> }
+				{ willDelete && <Button  onPress={ () => setDelete(false) }>Cancel</Button> }
 			</Card.Actions>
 		</Card>
 	)
