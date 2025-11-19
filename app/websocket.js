@@ -6,7 +6,7 @@ import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 // For Android emulator: ws://10.0.2.2:8089/ws
 // For same machine (web preview): ws://localhost:8089/ws
 // For real device: ws://YOUR_LOCAL_IP:8089/ws
-const WS_URL = "ws://mullet-deep-explicitly.ngrok-free.app/ws";
+const WS_URL = "ws://mullet-deep-explicitly.ngrok-free.app/ws:8082";
 
 export default function App() {
   const ws = useRef(null);

@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, status
+from fastapi import FastAPI, HTTPException, status, WebSocket, WebSocketDisconnect
 from pymongo import MongoClient
 from pymongo.errors import PyMongoError
 from fastapi.middleware.cors import CORSMiddleware
@@ -177,3 +177,50 @@ def put_robot(robot: Robot):
         raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, "Database not reachable")
     except Exception:
         raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, "Internal server error")
+
+connections = []
+@app.websocket("/ws")
+async def websocket_endpoint(websocket: WebSocket):
+    await websocket.accept()
+
+    # Add the connected websocket to list
+    connections.append(websocket)
+
+    print("Client connected")
+
+    try:
+        while True:
+            # Wait for message from client
+            data = await websocket.receive_json()
+            
+            # --- HEARTBEAT LOGIC ---
+            if data.get("message") == "ping":
+                await websocket.send_json({ "username": "server", "message": "pong" })
+                continue # Skip the rest of the loop so we don't echo "ping" to chat
+            # -----------------------
+
+            # convert from json to message and user {message:'', user:""}
+
+            print(f"Received from {data.get('username')}: {data.get('message')}")
+
+            for other_users in connections:
+                if other_users == websocket:
+                    continue
+                message = { "username": data.get('username'), "message": data.get('message') }
+                await other_users.send_json(message)
+
+            # Echo back 
+            # response = f"Server echo: {data}"
+            # await websocket.send_text(response)
+
+    except WebSocketDisconnect:
+        connections.remove(websocket)
+        print("Client disconnected -- Removed Websocket")
+    except Exception as e:
+        print("Unexpected error:", e)
+        try:
+            connections.remove(websocket)
+            print("Removed Websocket")
+            await websocket.close()
+        except:
+            pass

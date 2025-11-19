@@ -1,8 +1,8 @@
-import { BASE_URL } from './config';
-import { useEffect, useState, useCallback } from 'react';
-import { View, FlatList, Image, ActivityIndicator, StyleSheet } from 'react-native';
-import { TextInput, Text } from 'react-native-paper';
 import { Link, useFocusEffect } from 'expo-router';
+import { useCallback, useState } from 'react';
+import { ActivityIndicator, View } from 'react-native';
+import { Text, TextInput } from 'react-native-paper';
+import { BASE_URL } from './config';
 
 export default function Add() {
     const [name, setName] = useState('');
