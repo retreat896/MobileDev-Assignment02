@@ -1,15 +1,17 @@
 import * as ImagePicker from "expo-image-picker";
+import * as MediaLibrary from 'expo-media-library';
 import { Menu, IconButton } from "react-native-paper";
 import 'react-native-vector-icons';
 import { useState } from "react";
 
 const DEBUG = true;
 
-const SelectMedia = ({ limit, photoTaken, photoSelected }) => {
+const SelectMedia = ({ limit, saveMedia, photoTaken, photoSelected }) => {
     // Permissions
     const [cameraPermission, requestCameraPermission] = ImagePicker.useCameraPermissions();
     const [libraryPermission, requestLibraryPermission] = ImagePicker.useMediaLibraryPermissions();
-    
+    const [savePermission, requestSavePermission] = MediaLibrary.usePermissions();
+
     // The maximum number of media items selected
     limit = Math.max(1, limit || 1);
  
@@ -19,8 +21,22 @@ const SelectMedia = ({ limit, photoTaken, photoSelected }) => {
     const openMenu = () => { if (DEBUG) console.log("Opened"); setVisible(true); }
     const closeMenu = () => { if (DEBUG) console.log("Closed"); setVisible(false); }
     
-    
-    const handleCameraLaunch = async () => {
+    const saveMediaToLibrary = async (uri) => {
+        // No permission to save media
+        if (!savePermission) {
+            const granted = await requestSavePermission();
+            
+            // Don't save media, if no permission
+            if (!granted) return;
+        }
+        
+        if (DEBUG) console.log(`Saving Media: ${uri}`);
+
+        // Save media to device
+        await MediaLibrary.saveToLibraryAsync(uri)
+    }
+
+    const launchCamera = async () => {
         closeMenu();
 
         // No camera permission
@@ -51,12 +67,15 @@ const SelectMedia = ({ limit, photoTaken, photoSelected }) => {
 
             // Handle each photo
             for (let photo of result.assets) {
-                photoTaken(photo);
+                // Save the photo to the device (just because ik that's what Discord does)
+                if (saveMedia) await saveMediaToLibrary(photo.uri);
+                // Call the callback function
+                photoTaken(photo.uri);
             }
         }
     }
 
-    const handleImageLibraryLaunch = async () => {
+    const launchImageLibrary = async () => {
         closeMenu();
 
         // No library permission
@@ -92,7 +111,7 @@ const SelectMedia = ({ limit, photoTaken, photoSelected }) => {
 
             // Handle all selected photos
             for (let photo of result.assets) {
-                photoSelected(photo);
+                photoSelected(photo.uri);
             }
         }
     }
@@ -111,12 +130,12 @@ const SelectMedia = ({ limit, photoTaken, photoSelected }) => {
             statusBarHeight={-75}
         >
             <Menu.Item 
-                onPress={handleCameraLaunch} 
+                onPress={launchCamera} 
                 leadingIcon="camera"
                 title="Take Photo" 
             />
             <Menu.Item 
-                onPress={handleImageLibraryLaunch} 
+                onPress={launchImageLibrary} 
                 leadingIcon="image-multiple"
                 title="Choose from Library" 
             />
