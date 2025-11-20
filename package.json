@@ -3,24 +3,45 @@
   "version": "1.0.0",
   "main": "expo-router/entry",
   "scripts": {
+    "postinstall": "patch-package",
+    "build-apk": "set EAS_SKIP_AUTO_FINGERPRINT=1 && eas build --platform android --profile development",
+    "build-gradle": "npx expo prebuild --clean && cd android && (IF EXIST \\app\\build rmdir /S /Q \\app\\build) && (IF EXIST .gradle rmdir /S /Q .gradle) && gradlew clean --stacktrace",
     "start": "expo start --tunnel",
-    "android": "expo start --android",
-    "ios": "expo start --ios",
-    "web": "expo start --web"
+    "update-dependencies": "npm run reinstall-packages && npm run build-gradle && npm run start",
+    "android": "expo run:android",
+    "ios": "expo run:ios",
+    "web": "expo start --web",
+    "lint": "expo lint",
+    "check-packages": "npx expo-doctor --verbose && npx expo install --check",
+    "install-packages": "npm install && npm run postinstall",
+    "reinstall-packages": "(IF EXIST node_modules rmdir /S /Q .\\node_modules) && npm run install-packages"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.3",
     "expo": "~54.0.22",
     "expo-constants": "~18.0.10",
+    "expo-image-multiple-picker": "^4.10.0",
+    "expo-image-picker": "^17.0.8",
     "expo-linking": "~8.0.8",
+    "expo-media-library": "^18.2.0",
     "expo-router": "~6.0.14",
     "expo-status-bar": "~3.0.8",
+    "image-picker": "^0.3.1",
+    "install": "^0.13.0",
+    "patch-package": "^8.0.1",
     "react": "19.1.0",
     "react-dom": "19.1.0",
     "react-native": "0.81.5",
+    "react-native-image-picker": "^8.2.1",
     "react-native-paper": "^5.14.5",
     "react-native-safe-area-context": "~5.6.0",
-    "react-native-screens": "~4.16.0"
+    "react-native-screens": "~4.16.0",
+    "react-native-svg": "^15.15.0",
+    "react-native-vector-icons": "^10.3.0"
   },
-  "private": true
+  "private": true,
+  "devDependencies": {
+    "@types/react": "~19.1.10",
+    "typescript": "~5.9.2"
+  }
 }
