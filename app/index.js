@@ -30,10 +30,6 @@ export default function App() {
 			}
 		};
 	}, []);
-	
-	const showToast = (message) => {
-    	ToastAndroid.show(`${message}`, ToastAndroid.SHORT);
-  	};
 
 	const connectWebSocket = () => {
 		// Close previous connection if any
@@ -51,8 +47,10 @@ export default function App() {
 		};
 
 		ws.current.onmessage = (event) => {
-			console.log("Received:", event.data);
-			addMessage("server", event.data);
+			const data = JSON.parse(event.data)
+			console.log("Received:", data);
+			if (data.message) addMessage(data.username, data.message);
+			// if (data.image) addImage(data.username, data.image);
 		};
 
 		ws.current.onerror = (error) => {
@@ -122,9 +120,11 @@ export default function App() {
 								styles.messageBubble,
 								item.from === "me"
 									? styles.myMessage
-									: item.from === "server"
+								: item.from === "server"
 									? styles.serverMessage
-									: styles.systemMessage,
+								: item.from === "system"
+									? styles.systemMessage
+								: styles.userMessage
 							]}
 						>
 							<Text variant="bodySmall" style={styles.messageFrom}>{item.from.toUpperCase()}:</Text>
@@ -163,7 +163,7 @@ export default function App() {
 					style={styles.input}
 					placeholder="Type a message..."
 					value={inputText}
-					onChangeText={setInputText}
+					onChangeText={(t) => setInputText(text => t)}
 				/>
 				<Button mode="contained" onPress={sendMessage}>Send</Button>
 			</View>
@@ -210,12 +210,16 @@ const styles = StyleSheet.create({
 		backgroundColor: "#d4f8d4",
 	},
 	serverMessage: {
-		alignSelf: "flex-start",
+		alignSelf: "center",
 		backgroundColor: "#d4e4ff",
 	},
 	systemMessage: {
 		alignSelf: "center",
 		backgroundColor: "#fce5cd",
+	},
+	userMessage: {
+		alignSelf: "flex-start",
+		backgroundColor: "#fccddcff",
 	},
 	messageFrom: {
 		fontSize: 10,
