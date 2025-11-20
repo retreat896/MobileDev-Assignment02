@@ -1,1 +1,1 @@
-export const BASE_URL = `https://mullet-deep-explicitly.ngrok-free.app`;
+export default BASE_URL = `https://mullet-deep-explicitly.ngrok-free.app`;
