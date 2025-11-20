@@ -1,12 +1,6 @@
-import {
-    View,
-    Image,
-    Pressable,
-    Text,
-    ScrollView,
-    TextInput,
-} from "react-native";
-import { useRef, useState } from "react";
+import { View, Image, Pressable, ScrollView } from "react-native";
+import { Text } from 'react-native-paper';
+import { useRef } from "react";
 
 const MediaBar = ({ media=[], thumbnailSize, removeItem }) => {
 	// Reference Variables
@@ -83,14 +77,14 @@ const MediaBar = ({ media=[], thumbnailSize, removeItem }) => {
 							position: "absolute",
 							top: 0,
 							right: 0,
-							backgroundColor: "white",
+							backgroundColor: '#DD8888',
 							borderRadius: 40,
 							paddingVertical: 0,
-							paddingHorizontal: 4,
-							elevation: 6,
+							paddingHorizontal: 8,
+							elevation: 5,
 						}}
 					>
-						<Text style={{ fontWeight: "bold" }}>×</Text>
+						<Text variant="bodyLarge" style={{ fontWeight: "bold" }}>×</Text>
 					</Pressable>
 				</View>
 			))}
