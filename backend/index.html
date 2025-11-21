@@ -83,7 +83,7 @@
             background-color: #d4f8d4;
         }
 
-        .msg-server {
+        .msg-user {
             align-self: flex-start;
             background-color: #d4e4ff;
         }
@@ -204,8 +204,13 @@
             
             // Determine class based on sender
             let variantClass = 'msg-system';
-            if (from === 'me') variantClass = 'msg-me';
-            if (from === 'server') variantClass = 'msg-server';
+
+            if (['me', 'system'].includes(from)) {
+                variantClass = 'msg-' + from;
+            }
+            else {
+                variantClass = 'msg-user';
+            }
 
             bubble.className = `message-bubble ${variantClass}`;
 

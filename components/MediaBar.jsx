@@ -1,5 +1,5 @@
 import { View, Image, Pressable, ScrollView } from "react-native";
-import { Text } from 'react-native-paper';
+import { Text, IconButton } from 'react-native-paper';
 import { useRef } from "react";
 
 const MediaBar = ({ media=[], thumbnailSize, removeItem }) => {
