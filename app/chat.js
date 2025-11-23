@@ -201,7 +201,7 @@ export default function Chat() {
             const data = JSON.parse(event.data)
             if (data) {
                 // The websocket is sending a file
-                if (data.event_type.includes("file")) {
+                if (data.event_type.startsWith("file")) {
                     handleReceiveFile(data)
                 }
                 else {
@@ -235,25 +235,47 @@ export default function Chat() {
         ]);
     };
 
+    const sendFile = async (file) => {
+        // Send the file
+        await sendFileInChunks(file);
+        
+        // Update inputMedia
+        setInputMedia(media => media.filter(f => file !== f));
+
+        // Add the item to the chat
+        messages.push({
+            from: username.current,
+            event_type: "file",
+            payload: file
+        })
+    }
+
     const sendMessage = async () => {
         // MUST FIX TO NOT QUEUE MULTIPLE SENDS
         // OTHERWISE FUCKED UP INSANE DUPLICATION
 
         // Send attached files if any
         if (inputMedia.length > 0) {
-            for (let i=0; i<inputMedia.length; i++) {
-                // Send the file
-                await sendFileInChunks(inputMedia[i]);
-                // Remove from the list
-                inputMedia.splice(i, 1);
+            const mediaToSend = [...inputMedia];
+            for (let file of mediaToSend) {
+                await sendFile(file);
+                console.log("SENT: " + file);
             }
         }
 
         // A text message is queued
         if (inputText.trim()) {
+            const textToSend = inputText.trim();
             // Send the text message
-            sendPayload("message", inputText.trim());
+            sendPayload("message", textToSend);
             setInputText("");
+
+            // Add the item to the chat
+            messages.push({
+                from: username.current,
+                event_type: "message",
+                payload: textToSend
+            })
         }
     };
 

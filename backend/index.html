@@ -24,7 +24,7 @@
             flex-direction: column;
             height: 100%;
             padding: 16px;
-            max-width: 600px; /* limit width on desktop to look like a phone */
+            max-width: 600px;
             margin: 0 auto;
         }
 
@@ -51,7 +51,7 @@
             border-radius: 8px;
             padding: 8px;
             background-color: #ffffff;
-            overflow-y: auto; /* Enables scrolling */
+            overflow-y: auto;
             display: flex;
             flex-direction: column;
         }
@@ -77,6 +77,14 @@
             font-size: 14px;
         }
 
+        .message-image {
+            width: 120px;
+            height: 120px;
+            object-fit: cover;
+            border-radius: 4px;
+            margin-top: 4px;
+        }
+
         /* Variant Styles */
         .msg-me {
             align-self: flex-end;
@@ -85,6 +93,11 @@
 
         .msg-user {
             align-self: flex-start;
+            background-color: #fccddcff;
+        }
+
+        .msg-server {
+            align-self: center;
             background-color: #d4e4ff;
         }
 
@@ -107,20 +120,14 @@
             flex: 1;
             border: 1px solid #aaa;
             border-radius: 6px;
-            padding: 10px 8px; /* slightly larger padding for web touch targets */
+            padding: 10px 8px;
             background-color: #ffffff;
-            font-size: 16px; /* prevents zoom on mobile */
-        }
-
-        /* Specific style for username input to make it smaller */
-        #username-input {
-            flex: 0.4; /* Take up less space than message input */
-            background-color: #fffbe6; /* Light yellow to distinguish it */
+            font-size: 16px;
         }
 
         button {
             padding: 10px 16px;
-            background-color: #007AFF; /* React Native generic blue */
+            background-color: #007AFF;
             color: white;
             border: none;
             border-radius: 4px;
@@ -145,92 +152,256 @@
             width: 100%;
             background-color: #2196F3;
         }
+
+        /* Username Entry Screen */
+        #username-screen {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100%;
+        }
+
+        #username-screen .title {
+            margin-bottom: 20px;
+        }
+
+        #username-screen .input-row {
+            width: 100%;
+            max-width: 400px;
+        }
+
+        /* Chat Screen (hidden by default) */
+        #chat-screen {
+            display: none;
+            flex-direction: column;
+            height: 100%;
+        }
+
+        #chat-screen.active {
+            display: flex;
+        }
+
+        /* Media Bar */
+        #media-bar {
+            display: flex;
+            overflow-x: auto;
+            margin-bottom: 8px;
+            gap: 10px;
+            scrollbar-width: none;
+        }
+
+        #media-bar::-webkit-scrollbar {
+            display: none;
+        }
+
+        .media-thumbnail {
+            position: relative;
+            width: 120px;
+            height: 120px;
+            border-radius: 8px;
+            overflow: hidden;
+            flex-shrink: 0;
+        }
+
+        .media-thumbnail img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .media-thumbnail .remove-btn {
+            position: absolute;
+            top: 0;
+            right: 0;
+            background-color: #DD8888;
+            color: white;
+            border: none;
+            border-radius: 40px;
+            padding: 0 8px;
+            font-size: 20px;
+            font-weight: bold;
+            cursor: pointer;
+            line-height: 1;
+        }
+
+        .add-media-btn {
+            padding: 10px;
+            background-color: #007AFF;
+            min-width: 44px;
+        }
+
+        #file-input {
+            display: none;
+        }
     </style>
 </head>
 <body>
 
     <div id="app-container">
-        <h1 class="title">React Native + FastAPI WebSocket</h1>
-        <div class="status" id="status-text">Status: 😔 Disconnected</div>
-
-        <div id="messages-container">
+        <!-- Username Entry Screen -->
+        <div id="username-screen">
+            <h1 class="title">Enter a username to join the chat!</h1>
+            <div class="input-row">
+                <input type="text" id="username-entry-input" placeholder="Enter your name..." />
+                <button id="join-btn">Send</button>
             </div>
-
-        <div class="input-row">
-            <input type="text" id="username-input" placeholder="Username" />
-            </div>
-
-        <div class="input-row">
-            <input type="text" id="message-input" placeholder="Type a message..." />
-            <button id="send-btn">Send</button>
         </div>
 
-        <div class="button-row">
-            <button id="reconnect-btn" class="reconnect-btn">Reconnect</button>
+        <!-- Chat Screen -->
+        <div id="chat-screen">
+            <h1 class="title">React Native + FastAPI WebSocket</h1>
+            <div class="status" id="status-text">Status: 😔 Disconnected</div>
+
+            <div id="messages-container"></div>
+
+            <!-- Media Bar -->
+            <div id="media-bar"></div>
+
+            <div class="input-row">
+                <input type="file" id="file-input" accept="image/*" multiple />
+                <button id="add-media-btn" class="add-media-btn">+</button>
+                <input type="text" id="message-input" placeholder="Type a message..." />
+                <button id="send-btn">Send</button>
+            </div>
+
+            <div class="button-row">
+                <button id="reconnect-btn" class="reconnect-btn">Reconnect</button>
+            </div>
         </div>
     </div>
 
     <script>
         // --- Configuration ---
+        const USERNAME_KEY = 'chat_username';
         
         // AUTOMATIC URL DETECTION
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-        const host = window.location.host; // Includes domain and port
+        const host = window.location.host;
         const WS_URL = `${protocol}//${host}/ws`;
 
         // --- State & DOM Elements ---
         let ws = null;
         let isConnected = false;
+        let username = '';
+        let inputMedia = [];
+        let downloads = new Map();
 
+        // Username Screen Elements
+        const usernameScreen = document.getElementById('username-screen');
+        const usernameEntryInput = document.getElementById('username-entry-input');
+        const joinBtn = document.getElementById('join-btn');
+
+        // Chat Screen Elements
+        const chatScreen = document.getElementById('chat-screen');
         const statusText = document.getElementById('status-text');
         const messagesContainer = document.getElementById('messages-container');
-        const usernameInput = document.getElementById('username-input'); // <--- New
         const messageInput = document.getElementById('message-input');
         const sendBtn = document.getElementById('send-btn');
         const reconnectBtn = document.getElementById('reconnect-btn');
+        const mediaBar = document.getElementById('media-bar');
+        const addMediaBtn = document.getElementById('add-media-btn');
+        const fileInput = document.getElementById('file-input');
 
-        // Set a random default username so they don't have to type one immediately
-        usernameInput.value = "User" + Math.floor(Math.random() * 100);
+        // --- Username Management ---
+        function loadUsername() {
+            const stored = localStorage.getItem(USERNAME_KEY);
+            if (stored) {
+                usernameEntryInput.value = stored;
+                console.log(`Loaded Username: ${stored}`);
+            } else {
+                usernameEntryInput.value = "User" + Math.floor(Math.random() * 100);
+            }
+        }
 
-        // --- Logic ---
+        function saveUsername(name) {
+            localStorage.setItem(USERNAME_KEY, name);
+            console.log(`Saved Username: ${name}`);
+        }
 
+        function handleJoinChat() {
+            const name = usernameEntryInput.value.trim();
+            if (name.length > 2 && name.length <= 16) {
+                username = name;
+                saveUsername(name);
+                usernameScreen.style.display = 'none';
+                chatScreen.classList.add('active');
+                connectWebSocket();
+            } else {
+                alert('Username must be between 3 and 16 characters');
+            }
+        }
+
+        // --- WebSocket Logic ---
         function updateStatus(connected) {
             isConnected = connected;
             statusText.textContent = connected ? "Status: 😃 Connected" : "Status: 😔 Disconnected";
         }
 
-        function addMessage(from, text) {
+        function addMessage(from, eventType, payload) {
             const bubble = document.createElement('div');
             
-            // Determine class based on sender
             let variantClass = 'msg-system';
-
-            if (['me', 'system'].includes(from)) {
-                variantClass = 'msg-' + from;
-            }
-            else {
+            if (from === username) {
+                variantClass = 'msg-me';
+            } else if (from === 'system') {
+                variantClass = 'msg-system';
+            } else if (from === 'server') {
+                variantClass = 'msg-server';
+            } else {
                 variantClass = 'msg-user';
             }
 
             bubble.className = `message-bubble ${variantClass}`;
 
-            // Create inner HTML structure
             const fromSpan = document.createElement('span');
             fromSpan.className = 'message-from';
-            fromSpan.textContent = from + ':';
-
-            const textSpan = document.createElement('span');
-            textSpan.className = 'message-text';
-            textSpan.textContent = text;
-
+            fromSpan.textContent = from.toUpperCase() + ':';
             bubble.appendChild(fromSpan);
-            bubble.appendChild(textSpan);
 
-            // Append to list
+            if (eventType === 'message') {
+                const textSpan = document.createElement('span');
+                textSpan.className = 'message-text';
+                textSpan.textContent = payload;
+                bubble.appendChild(textSpan);
+            } else if (eventType === 'file') {
+                const img = document.createElement('img');
+                img.className = 'message-image';
+                img.src = payload;
+                bubble.appendChild(img);
+            }
+
             messagesContainer.appendChild(bubble);
-
-            // Auto-scroll to bottom
             messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+
+        async function handleReceiveFile(data) {
+            const filename = data.payload.filename;
+            const bytes = data.payload.bytes;
+
+            if (data.event_type === "file_start") {
+                console.log(`Started listening for file: ${filename}`);
+                downloads.set(filename, {
+                    data: [],
+                    expected_hash: data.payload.hash,
+                    algorithm: data.payload.algorithm
+                });
+            } else if (bytes) {
+                const file = downloads.get(filename);
+                console.log(`Received ${bytes.length} bytes.`);
+                file.data.push(...bytes);
+            }
+
+            if (data.event_type === "file_end") {
+                console.log("File successfully received!");
+                const file = downloads.get(filename);
+                
+                // Create blob and object URL
+                const blob = new Blob([new Uint8Array(file.data)], { type: 'image/jpeg' });
+                const url = URL.createObjectURL(blob);
+                
+                addMessage(data.username, 'file', url);
+            }
         }
 
         function connectWebSocket() {
@@ -244,74 +415,138 @@
 
                 ws.onopen = () => {
                     updateStatus(true);
-                    addMessage("system", "Connected to server");
-                    
-                    // --- START HEARTBEAT ---
-                    ws.heartbeatInterval = setInterval(() => {
-                        if (ws.readyState === WebSocket.OPEN) {
-                            ws.send(JSON.stringify({ username: username, message: "ping" }));
-                            console.log("♥ Sent heartbeat");
-                        }
-                    }, 20000); 
+                    addMessage("system", "message", "Connected to server.");
                 };
 
                 ws.onmessage = (event) => {
                     const data = JSON.parse(event.data);
 
-                    if (data.message === "pong") return;
-
-                    console.log("Received:", data);
-                    addMessage(data.username, data.message);
+                    console.log(data);
+                    
+                    if (data.event_type && data.event_type.includes("file")) {
+                        handleReceiveFile(data);
+                    } else {
+                        console.log("Received:", data);
+                        addMessage(data.username, data.event_type, data.payload);
+                    }
                 };
 
                 ws.onerror = (error) => {
                     console.error("WebSocket error:", error);
-                    addMessage("system", "WebSocket error (check console)");
+                    addMessage("system", "message", "WebSocket error. See console.");
                 };
 
                 ws.onclose = () => {
-                    if (ws.heartbeatInterval) clearInterval(ws.heartbeatInterval);
-
                     console.log("WebSocket closed");
                     updateStatus(false);
-                    addMessage("system", "Disconnected from server");
+                    addMessage("system", "message", "Disconnected from server.");
                 };
             } catch (e) {
                 console.error(e);
-                addMessage("system", "Failed to create WebSocket connection");
+                addMessage("system", "message", "Failed to create WebSocket connection");
             }
         }
 
-        function sendMessage() {
+        function sendPayload(eventType, payload) {
             if (!ws || ws.readyState !== WebSocket.OPEN) {
-                addMessage("system", "Not connected. Trying to reconnect...");
+                addMessage("system", "message", "Not connected. Trying to reconnect...");
                 connectWebSocket();
                 return;
             }
-
-            const text = messageInput.value.trim();
-            const username = usernameInput.value.trim() || "Anonymous"; // Default if empty
-
-            if (!text) return;
-
-            // 1. Show the plain text locally (so it looks clean for me)
-            addMessage("me", text);
             
-            // 2. Send "Username: Message" to the server
-            // The server will broadcast this full string to everyone else
-            ws.send(JSON.stringify({ username: username, message: text }));
+            const data = {
+                username: username,
+                event_type: eventType,
+                payload: payload
+            };
 
-            // Clear input
-            messageInput.value = "";
-            messageInput.focus();
+            ws.send(JSON.stringify(data));
+        }
+
+        async function sendFileInChunks(file) {
+            try {
+                const chunkSize = 1024 * 64; // 64KB
+                const arrayBuffer = await file.arrayBuffer();
+                const bytes = new Uint8Array(arrayBuffer);
+                const total = bytes.length;
+
+                console.log(`Sending File: ${file.name}`);
+                sendPayload("file_start", file.name);
+
+                for (let i = 0; i < total; i += chunkSize) {
+                    const chunk = bytes.slice(i, i + chunkSize);
+                    sendPayload("file", Array.from(chunk));
+                    await new Promise(r => setTimeout(r, 10));
+                }
+
+                sendPayload("file_end", null);
+            } catch (err) {
+                console.error("Error sending file in chunks:", err);
+            }
+        }
+
+        async function sendMessage() {
+            // Send attached files if any
+            if (inputMedia.length > 0) {
+                for (let file of inputMedia) {
+                    await sendFileInChunks(file);
+                }
+                inputMedia = [];
+                updateMediaBar();
+            }
+
+            // Send text message
+            const text = messageInput.value.trim();
+            if (text) {
+                sendPayload("message", text);
+                messageInput.value = "";
+            }
+        }
+
+        // --- Media Handling ---
+        function updateMediaBar() {
+            mediaBar.innerHTML = '';
+            
+            inputMedia.forEach((file, index) => {
+                const thumbnail = document.createElement('div');
+                thumbnail.className = 'media-thumbnail';
+                
+                const img = document.createElement('img');
+                img.src = URL.createObjectURL(file);
+                
+                const removeBtn = document.createElement('button');
+                removeBtn.className = 'remove-btn';
+                removeBtn.textContent = '×';
+                removeBtn.onclick = () => {
+                    inputMedia.splice(index, 1);
+                    updateMediaBar();
+                };
+                
+                thumbnail.appendChild(img);
+                thumbnail.appendChild(removeBtn);
+                mediaBar.appendChild(thumbnail);
+            });
+        }
+
+        function addMediaInput(files) {
+            for (let file of files) {
+                if (!inputMedia.includes(file) && inputMedia.length < 4) {
+                    inputMedia.push(file);
+                }
+            }
+            updateMediaBar();
         }
 
         // --- Event Listeners ---
+        window.addEventListener('load', () => {
+            loadUsername();
+        });
 
-        window.addEventListener('load', connectWebSocket);
-
-        window.addEventListener('beforeunload', () => {
-            if (ws) ws.close();
+        joinBtn.addEventListener('click', handleJoinChat);
+        usernameEntryInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                handleJoinChat();
+            }
         });
 
         sendBtn.addEventListener('click', sendMessage);
@@ -320,6 +555,17 @@
         messageInput.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') {
                 sendMessage();
+            }
+        });
+
+        addMediaBtn.addEventListener('click', () => {
+            fileInput.click();
+        });
+
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                addMediaInput(Array.from(e.target.files));
+                fileInput.value = '';
             }
         });
 
