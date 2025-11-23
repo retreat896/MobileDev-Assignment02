@@ -1,23 +1,17 @@
 import React, { useEffect, useRef, useState } from "react";
-import { View, FlatList, StyleSheet, ToastAndroid } from "react-native";
+import { View, StyleSheet } from "react-native";
 import { Text, TextInput, Button } from 'react-native-paper';
-import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
-import SelectMedia from "../components/SelectMedia";
-import MediaBar from "../components/MediaBar";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
-import { useAsyncStorage } from '@react-native-async-storage/async-storage';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { USERNAME } from './config';
 
 export default function App() {
 	const router = useRouter();
-	const ws = useRef(null);
-	const [isConnected, setIsConnected] = useState(false);
 	const [username, setUsername] = useState("");
-	const [inputMedia, setInputMedia] = useState([]);
-	const [messages, setMessages] = useState([]);
 
 	const loadUsername = async () => {
-		const result = await useAsyncStorage(USERNAME).getItem();
+		const result = await AsyncStorage.getItem(USERNAME);
 		
 		// Check that the result was not an error
 		if (typeof result == 'string')  {
@@ -31,7 +25,7 @@ export default function App() {
 	}
 
 	const saveUsername = async () => {
-		const result = await useAsyncStorage(USERNAME).setItem(username);
+		const result = await AsyncStorage.setItem(USERNAME, username);
 		
 		// Check that the result was not an error
 		if (typeof result == 'string')  {

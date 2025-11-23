@@ -1,11 +1,10 @@
 import React, { useEffect, useRef, useState } from "react";
-import { Image, View, FlatList, StyleSheet, ToastAndroid } from "react-native";
+import { Image, View, FlatList, StyleSheet } from "react-native";
 import { Text, TextInput, Button } from 'react-native-paper';
-import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView } from "react-native-safe-area-context";
 import SelectMedia from "../components/SelectMedia";
 import MediaBar from "../components/MediaBar";
-import { useRouter } from "expo-router";
-import { useAsyncStorage } from '@react-native-async-storage/async-storage';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { WS_URL, USERNAME, CHAT_FOLDER } from './config';
 import { File, Paths, Directory } from "expo-file-system";
 import { createHash } from 'react-native-quick-crypto';
@@ -63,11 +62,11 @@ export default function Chat() {
 
     const loadUsername = async () => {
         console.log('username key', USERNAME);
-        const result = await useAsyncStorage(USERNAME).getItem();
+        const result = await AsyncStorage.getItem(USERNAME);
         
         // Check that the result was not an error
-        if (typeof result == 'string')  {
-            username.current = result; 
+        if (typeof result == 'string') {
+            username.current = result;
             console.log(`Updated Username: ${result}`);
         }
         // Log any errors
@@ -210,7 +209,6 @@ export default function Chat() {
                     addMessage(data);
                 }
             }
-            // if (data.image) addImage(data.username, data.image);
         };
 
         ws.current.onerror = (error) => {
