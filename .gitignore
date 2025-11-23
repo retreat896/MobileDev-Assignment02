@@ -3,6 +3,9 @@
 # dependencies
 node_modules/
 
+# Code Analysis
+.scannerwork
+
 # Expo
 .expo/
 dist/
