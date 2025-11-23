@@ -7,13 +7,18 @@ import { useState } from "react";
 const DEBUG = true;
 
 const SelectMedia = ({ limit, saveMedia, photoTaken, photoSelected }) => {
+    // Default Properties
+    saveMedia = (saveMedia || false);       // Whether or not to save captured photos
+    limit = Math.max(1, limit || 1);        // The maximum number of media items selected
+    photoTaken = photoTaken || null;        // Callback to execute when a photo is captured
+    photoSelected = photoSelected || null;  // Callback to execute when a photo is selected
+
+    
     // Permissions
     const [cameraPermission, requestCameraPermission] = ImagePicker.useCameraPermissions();
     const [libraryPermission, requestLibraryPermission] = ImagePicker.useMediaLibraryPermissions();
     const [savePermission, requestSavePermission] = MediaLibrary.usePermissions();
 
-    // The maximum number of media items selected
-    limit = Math.max(1, limit || 1);
  
     // Menu Display
     const [visible, setVisible] = useState(false);
@@ -95,8 +100,6 @@ const SelectMedia = ({ limit, saveMedia, photoTaken, photoSelected }) => {
             quality: 1,
             selectionLimit: limit
         }
-
-        console.log
 
         const result = await ImagePicker.launchImageLibraryAsync(options);
 
