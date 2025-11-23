@@ -60,6 +60,8 @@ async def send_to_clients(sender: str, event_type: str, payload: any, excluding=
             "payload": payload
         }
 
+        print("Sending...")
+
         await client.send_json(data)
 
 async def send_file_to_clients(sender: str, filename: str, data: bytes, verify: dict, excluding=None):
@@ -86,7 +88,7 @@ async def send_file_to_clients(sender: str, filename: str, data: bytes, verify: 
 
         # Send the chunk to the client
         await send_to_clients(sender, event_type, payload, excluding)
-    print(f"Done.")
+    print("Done.")
 
 async def send_error(receiver, event_type, payload):
     await receiver.send_json({
@@ -158,7 +160,7 @@ async def websocket_endpoint(websocket: WebSocket):
 
                 # Forward the file to other clients
                 # Don't exclude the sender, since I removed the logic from App
-                await send_file_to_clients(sender, file_name, file_data, fingerprint)
+                await send_file_to_clients(sender, file_name, file_data, fingerprint, excluding=websocket)
                 
                 # Erase the file data
                 file_name = str()
@@ -168,7 +170,7 @@ async def websocket_endpoint(websocket: WebSocket):
                 print(f"Received from {sender}: {payload}")
 
                 # Don't exclude the sender, since I removed the logic from App
-                send_to_clients(sender, "message", payload, excluding=None)
+                await send_to_clients(sender, "message", payload, excluding=websocket)
         
             # -----------------------
 
