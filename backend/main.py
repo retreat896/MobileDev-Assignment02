@@ -275,8 +275,10 @@ async def send_to_clients(sender_token: str, event_type: str, payload: any, excl
         if not client or client.get("disconnected"):
             continue
 
-        # Skip the client, if they were the sender
-        if client_token is not exclude_token:
+        print(f"Client: {client_token}")
+        print(f"Exclude: {exclude_token}")
+        # Skip the client, if they were excluded
+        if client_token != exclude_token:
             # Assemble the data to send
             data = {
                 "username": sender_name,
@@ -351,8 +353,10 @@ def upload_file(event_type: str, payload: dict, token: str):
     # The file content
     content = bytes(payload.get("bytes"))
     # The expected file hash/algorithm (optional)
-    client_hash = str(payload.get("hash")).lower()
-    client_algorithm = str(payload.get("algorithm")).lower()
+    client_hash = payload.get("hash")
+    client_hash = str(client_hash).lower() if client_hash else None
+    client_algorithm = payload.get("algorithm")
+    client_algorithm = str(client_algorithm).lower() if client_algorithm else None
 
     if not file_name:
         print("!!! No File Name !!!")
@@ -388,7 +392,10 @@ def upload_file(event_type: str, payload: dict, token: str):
             
             # Verify file integrity using client hash
             if client_hash and client_algorithm:
-                server_hash = hashlib.new(client_algorithm, bytes(upload["content"])).hexdigest()
+                try:
+                    server_hash = hashlib.new(client_algorithm, bytes(upload["content"])).hexdigest()
+                except:
+                    server_hash = None
 
                 # Hash verification failed
                 if server_hash != client_hash:

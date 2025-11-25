@@ -3,9 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>RN + FastAPI WebSocket Client</title>
+    <title>WebSocket Chat</title>
     <style>
-        /* Reset and Base Styles to mimic Mobile App feel */
         * {
             box-sizing: border-box;
             margin: 0;
@@ -18,7 +17,6 @@
             background-color: #f0f4ff;
         }
 
-        /* Main Container (SafeAreaView equivalent) */
         #app-container {
             display: flex;
             flex-direction: column;
@@ -28,7 +26,6 @@
             margin: 0 auto;
         }
 
-        /* Typography */
         h1.title {
             font-size: 20px;
             font-weight: 800;
@@ -44,7 +41,6 @@
             color: #333;
         }
 
-        /* Messages Area (FlatList equivalent) */
         #messages-container {
             flex: 1;
             border: 1px solid #ddd;
@@ -56,7 +52,6 @@
             flex-direction: column;
         }
 
-        /* Message Bubbles */
         .message-bubble {
             margin-bottom: 8px;
             padding: 6px 10px;
@@ -85,7 +80,6 @@
             margin-top: 4px;
         }
 
-        /* Variant Styles */
         .msg-me {
             align-self: flex-end;
             background-color: #d4f8d4;
@@ -107,7 +101,6 @@
             font-style: italic;
         }
 
-        /* Input Area */
         .input-row {
             display: flex;
             flex-direction: row;
@@ -144,6 +137,11 @@
             opacity: 0.7;
         }
 
+        button:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+
         .button-row {
             margin-top: 8px;
         }
@@ -153,7 +151,6 @@
             background-color: #2196F3;
         }
 
-        /* Username Entry Screen */
         #username-screen {
             display: flex;
             flex-direction: column;
@@ -171,7 +168,6 @@
             max-width: 400px;
         }
 
-        /* Chat Screen (hidden by default) */
         #chat-screen {
             display: none;
             flex-direction: column;
@@ -182,17 +178,12 @@
             display: flex;
         }
 
-        /* Media Bar */
         #media-bar {
             display: flex;
             overflow-x: auto;
             margin-bottom: 8px;
             gap: 10px;
-            scrollbar-width: none;
-        }
-
-        #media-bar::-webkit-scrollbar {
-            display: none;
+            scrollbar-width: thin;
         }
 
         .media-thumbnail {
@@ -212,17 +203,20 @@
 
         .media-thumbnail .remove-btn {
             position: absolute;
-            top: 0;
-            right: 0;
-            background-color: #DD8888;
+            top: 4px;
+            right: 4px;
+            background-color: rgba(221, 136, 136, 0.9);
             color: white;
             border: none;
-            border-radius: 40px;
-            padding: 0 8px;
-            font-size: 20px;
-            font-weight: bold;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            font-size: 18px;
             cursor: pointer;
-            line-height: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0;
         }
 
         .add-media-btn {
@@ -234,24 +228,47 @@
         #file-input {
             display: none;
         }
+
+        .progress-bar {
+            width: 100%;
+            height: 4px;
+            background-color: #e0e0e0;
+            border-radius: 2px;
+            overflow: hidden;
+            margin-bottom: 8px;
+            display: none;
+        }
+
+        .progress-bar.visible {
+            display: block;
+        }
+
+        .progress-bar-fill {
+            height: 100%;
+            background-color: #007AFF;
+            transition: width 0.3s ease;
+        }
     </style>
 </head>
 <body>
-
     <div id="app-container">
         <!-- Username Entry Screen -->
         <div id="username-screen">
             <h1 class="title">Enter a username to join the chat!</h1>
             <div class="input-row">
-                <input type="text" id="username-entry-input" placeholder="Enter your name..." />
+                <input type="text" id="username-entry-input" placeholder="Enter your name..." maxlength="16" />
                 <button id="join-btn">Send</button>
             </div>
         </div>
 
         <!-- Chat Screen -->
         <div id="chat-screen">
-            <h1 class="title">React Native + FastAPI WebSocket</h1>
+            <h1 class="title">WebSocket Chat</h1>
             <div class="status" id="status-text">Status: 😔 Disconnected</div>
+
+            <div class="progress-bar" id="upload-progress">
+                <div class="progress-bar-fill" id="upload-progress-fill"></div>
+            </div>
 
             <div id="messages-container"></div>
 
@@ -274,25 +291,31 @@
     <script>
         // --- Configuration ---
         const USERNAME_KEY = 'chat_username';
+        const WS_TOKEN_KEY = 'ws_token';
+        const WS_TOKEN_EXPIRY_KEY = 'ws_token_expiry';
         
-        // AUTOMATIC URL DETECTION
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
         const host = window.location.host;
+        const BASE_URL = `${window.location.protocol}//${host}`;
         const WS_URL = `${protocol}//${host}/ws`;
 
-        // --- State & DOM Elements ---
-        let ws = null;
+        // --- State ---
+        let wsUpload = null;
+        let wsDownload = null;
         let isConnected = false;
         let username = '';
+        let authToken = null;
         let inputMedia = [];
         let downloads = new Map();
+        let downloadTimeouts = new Map();
+        let fileQueue = [];
+        let bytesUpload = 0;
+        let totalUploadBytes = 0;
 
-        // Username Screen Elements
+        // --- DOM Elements ---
         const usernameScreen = document.getElementById('username-screen');
         const usernameEntryInput = document.getElementById('username-entry-input');
         const joinBtn = document.getElementById('join-btn');
-
-        // Chat Screen Elements
         const chatScreen = document.getElementById('chat-screen');
         const statusText = document.getElementById('status-text');
         const messagesContainer = document.getElementById('messages-container');
@@ -302,47 +325,149 @@
         const mediaBar = document.getElementById('media-bar');
         const addMediaBtn = document.getElementById('add-media-btn');
         const fileInput = document.getElementById('file-input');
+        const uploadProgress = document.getElementById('upload-progress');
+        const uploadProgressFill = document.getElementById('upload-progress-fill');
 
         // --- Username Management ---
         function loadUsername() {
             const stored = localStorage.getItem(USERNAME_KEY);
             if (stored) {
                 usernameEntryInput.value = stored;
-                console.log(`Loaded Username: ${stored}`);
             } else {
-                usernameEntryInput.value = "User" + Math.floor(Math.random() * 100);
+                usernameEntryInput.value = 'User' + Math.floor(Math.random() * 100);
             }
         }
 
         function saveUsername(name) {
             localStorage.setItem(USERNAME_KEY, name);
-            console.log(`Saved Username: ${name}`);
         }
 
-        function handleJoinChat() {
+        async function handleJoinChat() {
             const name = usernameEntryInput.value.trim();
             if (name.length > 2 && name.length <= 16) {
                 username = name;
                 saveUsername(name);
                 usernameScreen.style.display = 'none';
                 chatScreen.classList.add('active');
-                connectWebSocket();
+                await connectWebSocket();
             } else {
                 alert('Username must be between 3 and 16 characters');
             }
         }
 
-        // --- WebSocket Logic ---
-        function updateStatus(connected) {
-            isConnected = connected;
-            statusText.textContent = connected ? "Status: 😃 Connected" : "Status: 😔 Disconnected";
+        // --- Token Management ---
+        async function getAuthToken() {
+            const storedToken = localStorage.getItem(WS_TOKEN_KEY);
+            const expiryStr = localStorage.getItem(WS_TOKEN_EXPIRY_KEY);
+
+            if (storedToken && expiryStr) {
+                const expiry = parseInt(expiryStr);
+                if (Date.now() < expiry - (24 * 60 * 60 * 1000)) {
+                    console.log('Using existing token');
+                    return storedToken;
+                }
+            }
+
+            console.log('Requesting new token from server...');
+            try {
+                const response = await fetch(`${BASE_URL}/ws/auth/token`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ username: username })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const data = await response.json();
+                const newToken = data.token;
+                const expiresIn = data.expires_in * 1000;
+
+                localStorage.setItem(WS_TOKEN_KEY, newToken);
+                localStorage.setItem(WS_TOKEN_EXPIRY_KEY, (Date.now() + expiresIn).toString());
+
+                console.log('Received new token');
+                return newToken;
+            } catch (error) {
+                console.error('Failed to get auth token:', error);
+                throw error;
+            }
         }
 
-        function addMessage(from, eventType, payload) {
+        // --- WebSocket Connection ---
+        async function connectWebSocket() {
+            if (wsUpload) wsUpload.close();
+            if (wsDownload) wsDownload.close();
+
+            try {
+                const token = await getAuthToken();
+                authToken = token;
+
+                console.log('Connecting to WebSocket...');
+                wsUpload = new WebSocket(`${WS_URL}/upload?token=${token}`);
+                wsDownload = new WebSocket(`${WS_URL}/download?token=${token}`);
+
+                wsDownload.onopen = () => {
+                    console.log('Download WebSocket connected');
+                    updateStatus(true);
+                    addSystemMessage('Connected to server.');
+                };
+
+                wsUpload.onopen = () => {
+                    console.log('Upload WebSocket connected');
+                };
+
+                wsDownload.onmessage = (event) => {
+                    const data = JSON.parse(event.data);
+                    const eventType = data.event_type;
+
+                    if (eventType && eventType.startsWith('file')) {
+                        handleDownload(eventType, data);
+                    } else if (eventType === 'message') {
+                        handleMessage(data);
+                    }
+                };
+
+                wsDownload.onerror = () => {};
+                wsUpload.onerror = () => {};
+
+                wsDownload.onclose = async (event) => {
+                    console.log('Download WebSocket closed');
+                    updateStatus(false);
+                    addSystemMessage('Disconnected from server.');
+                    console.log(event)
+                    if (event.code === 1008 || event.reason?.includes('403')) {
+                        localStorage.removeItem(WS_TOKEN_KEY);
+                        localStorage.removeItem(WS_TOKEN_EXPIRY_KEY);
+                        console.log('Attempting to reconnect with new token');
+                        await connectWebSocket();
+                    }
+                };
+
+            } catch (error) {
+                console.error('Failed to connect:', error);
+                addSystemMessage('Failed to connect to server.');
+            }
+        }
+
+        // --- Message Handling ---
+        function updateStatus(connected) {
+            isConnected = connected;
+            statusText.textContent = connected ? 'Status: 😃 Connected' : 'Status: 😔 Disconnected';
+        }
+
+        function addSystemMessage(text) {
+            addMessage('system', 'message', text);
+        }
+
+        function addMessage(from, eventType, payload, timestamp = Date.now()) {
             const bubble = document.createElement('div');
             
             let variantClass = 'msg-system';
-            if (from === username) {
+            if (from === username || from === 'me') {
                 variantClass = 'msg-me';
             } else if (from === 'system') {
                 variantClass = 'msg-system';
@@ -362,7 +487,7 @@
             if (eventType === 'message') {
                 const textSpan = document.createElement('span');
                 textSpan.className = 'message-text';
-                textSpan.textContent = payload;
+                textSpan.textContent = typeof payload === 'object' ? payload.text : payload;
                 bubble.appendChild(textSpan);
             } else if (eventType === 'file') {
                 const img = document.createElement('img');
@@ -375,131 +500,179 @@
             messagesContainer.scrollTop = messagesContainer.scrollHeight;
         }
 
-        async function handleReceiveFile(data) {
-            const filename = data.payload.filename;
-            const bytes = data.payload.bytes;
+        function handleMessage(data) {
+            const sender = data.username;
+            const text = data.payload.text;
+            const timestamp = data.payload.timestamp;
+            addMessage(sender, 'message', data.payload, timestamp);
+        }
 
-            if (data.event_type === "file_start") {
-                console.log(`Started listening for file: ${filename}`);
-                downloads.set(filename, {
-                    data: [],
-                    expected_hash: data.payload.hash,
-                    algorithm: data.payload.algorithm
-                });
-            } else if (bytes) {
-                const file = downloads.get(filename);
-                console.log(`Received ${bytes.length} bytes.`);
-                file.data.push(...bytes);
+        async function handleDownload(eventType, data) {
+            const sender = data.username;
+            const fileName = data.payload.file_name;
+            const bytes = data.payload.bytes;
+            
+            const fileKey = `${sender.padEnd(12, ' ').substring(0, 13).trim()}_${fileName}`;
+            let file = downloads.get(fileKey);
+
+            if (file) {
+                file.buffer.set(bytes, file.offset);
+                file.offset += bytes.length;
+                file.lastUpdated = Date.now();
+
+                if (downloadTimeouts.has(fileKey)) {
+                    clearTimeout(downloadTimeouts.get(fileKey));
+                }
+
+                const timeoutId = setTimeout(() => {
+                    const timeSinceUpdate = Date.now() - file.lastUpdated;
+                    if (timeSinceUpdate >= 10000) {
+                        console.warn(`Download timeout for file: ${fileKey}`);
+                        downloads.delete(fileKey);
+                        downloadTimeouts.delete(fileKey);
+                    }
+                }, 15000);
+                
+                downloadTimeouts.set(fileKey, timeoutId);
             }
 
-            if (data.event_type === "file_end") {
-                console.log("File successfully received!");
-                const file = downloads.get(filename);
+            if (eventType === 'file_start') {
+                const filesize = data.payload.size;
+                const timestamp = data.payload.timestamp;
+                const serverHash = data.payload.hash;
+                const algorithm = data.payload.algorithm;
+
+                downloads.set(fileKey, {
+                    buffer: new Uint8Array(filesize),
+                    offset: 0,
+                    lastUpdated: Date.now(),
+                    timestamp: timestamp,
+                    size: filesize,
+                    expectedHash: serverHash,
+                    algorithm: algorithm
+                });
+
+                const newDownload = downloads.get(fileKey);
+                newDownload.buffer.set(bytes, 0);
+                newDownload.offset = bytes.length;
+            } else if (file && eventType === 'file_end') {
+                console.log('File successfully received!');
                 
-                // Create blob and object URL
-                const blob = new Blob([new Uint8Array(file.data)], { type: 'image/jpeg' });
+                const blob = new Blob([file.buffer], { type: 'image/jpeg' });
                 const url = URL.createObjectURL(blob);
                 
-                addMessage(data.username, 'file', url);
+                addMessage(sender, 'file', url, file.timestamp);
+                downloads.delete(fileKey);
             }
         }
 
-        function connectWebSocket() {
-            if (ws) {
-                ws.close();
-            }
-
-            console.log("Connecting to:", WS_URL);
-            try {
-                ws = new WebSocket(WS_URL);
-
-                ws.onopen = () => {
-                    updateStatus(true);
-                    addMessage("system", "message", "Connected to server.");
-                };
-
-                ws.onmessage = (event) => {
-                    const data = JSON.parse(event.data);
-
-                    console.log(data);
-                    
-                    if (data.event_type && data.event_type.includes("file")) {
-                        handleReceiveFile(data);
-                    } else {
-                        console.log("Received:", data);
-                        addMessage(data.username, data.event_type, data.payload);
-                    }
-                };
-
-                ws.onerror = (error) => {
-                    console.error("WebSocket error:", error);
-                    addMessage("system", "message", "WebSocket error. See console.");
-                };
-
-                ws.onclose = () => {
-                    console.log("WebSocket closed");
-                    updateStatus(false);
-                    addMessage("system", "message", "Disconnected from server.");
-                };
-            } catch (e) {
-                console.error(e);
-                addMessage("system", "message", "Failed to create WebSocket connection");
-            }
-        }
-
-        function sendPayload(eventType, payload) {
-            if (!ws || ws.readyState !== WebSocket.OPEN) {
-                addMessage("system", "message", "Not connected. Trying to reconnect...");
-                connectWebSocket();
+        // --- Sending Messages ---
+        async function sendPayload(eventType, payload) {
+            if (!wsUpload || wsUpload.readyState !== WebSocket.OPEN) {
+                addSystemMessage('Not connected. Trying to reconnect...');
+                await connectWebSocket();
                 return;
             }
-            
+
             const data = {
                 username: username,
                 event_type: eventType,
                 payload: payload
             };
 
-            ws.send(JSON.stringify(data));
+            wsUpload.send(JSON.stringify(data));
         }
 
-        async function sendFileInChunks(file) {
-            try {
-                const chunkSize = 1024 * 64; // 64KB
-                const arrayBuffer = await file.arrayBuffer();
-                const bytes = new Uint8Array(arrayBuffer);
-                const total = bytes.length;
+        async function sendByteChunk(filename, bytes, size, md5Hash = null) {
+            const CHUNK_SIZE = 1024 * 64;
+            const MAX_BUFFER_SIZE = 1024 * 1024;
 
-                console.log(`Sending File: ${file.name}`);
-                sendPayload("file_start", file.name);
-
-                for (let i = 0; i < total; i += chunkSize) {
-                    const chunk = bytes.slice(i, i + chunkSize);
-                    sendPayload("file", Array.from(chunk));
-                    await new Promise(r => setTimeout(r, 10));
-                }
-
-                sendPayload("file_end", null);
-            } catch (err) {
-                console.error("Error sending file in chunks:", err);
+            const bufferedAmount = wsUpload?.bufferedAmount || 0;
+            
+            if (bufferedAmount > MAX_BUFFER_SIZE) {
+                await new Promise(resolve => setTimeout(resolve, 10));
+                return bytes;
             }
+
+            const chunk = bytes.slice(0, CHUNK_SIZE);
+            const payload = {
+                file_name: filename,
+                bytes: Array.from(chunk)
+            };
+            
+            let eventType = 'file';
+
+            if (size === bytes.length) {
+                eventType = 'file_start';
+            } else if (bytes.length <= CHUNK_SIZE) {
+                eventType = 'file_end';
+                if (md5Hash) {
+                    payload.hash = md5Hash;
+                    payload.algorithm = 'md5';
+                }
+            }
+
+            await sendPayload(eventType, payload);
+
+            bytesUpload += chunk.length;
+            updateUploadProgress();
+
+            return bytes.subarray(CHUNK_SIZE);
+        }
+
+        function updateUploadProgress() {
+            if (totalUploadBytes > 0) {
+                const progress = (bytesUpload / totalUploadBytes) * 100;
+                uploadProgressFill.style.width = progress + '%';
+                uploadProgress.classList.add('visible');
+            } else {
+                uploadProgress.classList.remove('visible');
+            }
+        }
+
+        async function sendQueuedFiles() {
+            if (!fileQueue || fileQueue.length === 0) {
+                totalUploadBytes = 0;
+                bytesUpload = 0;
+                updateUploadProgress();
+                return;
+            }
+
+            const file = fileQueue.shift();
+            const arrayBuffer = await file.arrayBuffer();
+            let bytes = new Uint8Array(arrayBuffer);
+            
+            while (bytes.length > 0) {
+                bytes = await sendByteChunk(file.name, bytes, file.size);
+                await new Promise(r => setTimeout(r, 0));
+            }
+
+            addMessage('me', 'file', URL.createObjectURL(file));
+            inputMedia = inputMedia.filter(f => f !== file);
+            updateMediaBar();
+
+            await sendQueuedFiles();
         }
 
         async function sendMessage() {
-            // Send attached files if any
             if (inputMedia.length > 0) {
+                bytesUpload = 0;
+                totalUploadBytes = 0;
+                
                 for (let file of inputMedia) {
-                    await sendFileInChunks(file);
+                    totalUploadBytes += file.size;
+                    fileQueue.push(file);
                 }
-                inputMedia = [];
-                updateMediaBar();
+                
+                updateUploadProgress();
+                await sendQueuedFiles();
             }
 
-            // Send text message
             const text = messageInput.value.trim();
             if (text) {
-                sendPayload("message", text);
-                messageInput.value = "";
+                await sendPayload('message', { text: text });
+                messageInput.value = '';
+                addMessage('me', 'message', text);
             }
         }
 
@@ -538,29 +711,21 @@
         }
 
         // --- Event Listeners ---
-        window.addEventListener('load', () => {
-            loadUsername();
-        });
+        window.addEventListener('load', loadUsername);
 
         joinBtn.addEventListener('click', handleJoinChat);
         usernameEntryInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
-                handleJoinChat();
-            }
+            if (e.key === 'Enter') handleJoinChat();
         });
 
         sendBtn.addEventListener('click', sendMessage);
         reconnectBtn.addEventListener('click', connectWebSocket);
 
         messageInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
-                sendMessage();
-            }
+            if (e.key === 'Enter') sendMessage();
         });
 
-        addMediaBtn.addEventListener('click', () => {
-            fileInput.click();
-        });
+        addMediaBtn.addEventListener('click', () => fileInput.click());
 
         fileInput.addEventListener('change', (e) => {
             if (e.target.files.length > 0) {
@@ -568,7 +733,6 @@
                 fileInput.value = '';
             }
         });
-
     </script>
 </body>
 </html>

@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Image, View, FlatList, StyleSheet } from "react-native";
-import { Text, TextInput, Button, ProgressBar } from 'react-native-paper';
-import { SafeAreaView } from "react-native-safe-area-context";
+import { Text, TextInput, Button, ProgressBar, Provider } from 'react-native-paper';
+import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import SelectMedia from "../components/SelectMedia";
 import MediaBar from "../components/MediaBar";
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -59,6 +59,9 @@ export default function Chat() {
     const [inputText, setInputText] = useState("");
     const [inputMedia, setInputMedia] = useState([]);
     const [messages, setMessages] = useState([]);
+    // Track messages scroll bar
+    const flatListRef = useRef(null);
+    const isAtBottomRef = useRef(true);
     // Queue of files to send
     const fileQueue = useRef([]);
     // Keep track of files-upload progress
@@ -159,6 +162,15 @@ export default function Chat() {
             }
         };
     }, []);
+
+    // Auto-scroll to bottom when messages change (only if user is at bottom)
+    useEffect(() => {
+        if (isAtBottomRef.current && flatListRef.current && messages.length > 0) {
+            setTimeout(() => {
+                flatListRef.current?.scrollToEnd({ animated: true });
+            }, 100);
+        }
+    }, [messages])
 
     const handleDownload = async (event_type, data) => {
         // Sender info
@@ -300,10 +312,8 @@ export default function Chat() {
 
     const connectWebSocket = async () => {
         // Close previous connection if any
-        if (ws_upload.current || ws_download.current) {
-            ws_upload.current.close();
-            ws_download.current.close();
-        }
+        if (ws_upload.current) ws_upload.current.close();
+        if (ws_download.current) ws_download.current.close();
 
         // Get authentication token
         const token = await getAuthToken();
@@ -622,17 +632,28 @@ export default function Chat() {
         console.log("Added Item");
     }
 
+    const handleScroll = (event) => {
+        const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
+        const distanceFromBottom = contentSize.height - (contentOffset.y + layoutMeasurement.height);
+        
+        // Consider "at bottom" if within 50 pixels of the bottom
+        isAtBottomRef.current = distanceFromBottom < 50;
+    };
+
     return (
-        <SafeAreaView style={styles.container}>
+        <SafeAreaProvider style={styles.container}>
             <Text style={styles.status}>
                 Status: {isConnected ? "😃 Connected" : "😔 Disconnected"}
             </Text>
 
-            <View style={styles.messagesContainer}>
+            <SafeAreaView style={styles.messagesContainer}>
                 <ProgressBar visible={totalDownloadBytes > 0} progess={bytesDownload / totalDownloadBytes} />
                 <FlatList
+                    ref={flatListRef}
                     data={messages}
                     keyExtractor={(item) => item.id}
+                    onScroll={handleScroll}
+                    scrollEventThrottle={16}
                     renderItem={({ item }) => (
                         <View
                             style={[
@@ -655,23 +676,22 @@ export default function Chat() {
                         </View>
                     )}
                 />
-            </View>
+            </SafeAreaView>
 
-            <View style={styles.buttonRow}>
-                <MediaBar 
-                    media={inputMedia}
-                    isSending={totalUploadBytes > 0 && bytesUpload < totalUploadBytes}
-                    uploadProgress={totalUploadBytes > 0 ? bytesUpload / totalUploadBytes : 0}
-                    thumbnailSize={120}
-                    removeItem={(removed) => {
-                        // Update the input
-                        // Filter all except the removed item
-                        setInputMedia((input) => input.filter(media => media !== removed));
-                        console.log("Removed Item");
-                    }}
-                />
-            </View>
-
+            <MediaBar
+                style={styles.mediaBar}
+                media={inputMedia}
+                isSending={totalUploadBytes > 0 && bytesUpload < totalUploadBytes}
+                uploadProgress={totalUploadBytes > 0 ? bytesUpload / totalUploadBytes : 0}
+                thumbnailSize={120}
+                removeItem={(removed) => {
+                    // Update the input
+                    // Filter all except the removed item
+                    setInputMedia((input) => input.filter(media => media !== removed));
+                    console.log("Removed Item");
+                }}
+            />
+    
             <View style={styles.inputRow}>
                 <SelectMedia
                     saveMedia={true}
@@ -693,10 +713,10 @@ export default function Chat() {
                 <Button mode="contained" onPress={sendMessage}>Send</Button>
             </View>
 
-            <View style={styles.buttonRow}>
+            <SafeAreaView style={styles.buttonRow}>
                 <Button mode="outlined" onPress={connectWebSocket}>Reconnect</Button>
-            </View>
-        </SafeAreaView>
+            </SafeAreaView>
+        </SafeAreaProvider>
     );
 }
 
@@ -716,14 +736,16 @@ const styles = StyleSheet.create({
     status: {
         fontSize: 14,
         textAlign: "center",
-        marginBottom: 8,
+        marginVertical: 12
     },
     messagesContainer: {
         flex: 1,
         borderWidth: 1,
         borderColor: "#ddd",
         borderRadius: 8,
-        padding: 8,
+        paddingTop: 24,
+        paddingHorizontal: 8,
+        paddingBottom: -24,
         backgroundColor: "#ffffff",
     },
     messageBubble: {
@@ -755,8 +777,9 @@ const styles = StyleSheet.create({
         fontSize: 14,
     },
     inputRow: {
+        marginTop: 16,
+        marginBottom: 4,
         flexDirection: "row",
-        marginTop: 8,
         alignItems: "center",
         gap: 8,
     },
@@ -771,5 +794,9 @@ const styles = StyleSheet.create({
     },
     buttonRow: {
         marginTop: 8,
+        marginBottom: 16,
+    },
+    mediaBar: {
+        marginTop: 8
     },
 });

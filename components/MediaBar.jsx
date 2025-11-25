@@ -2,7 +2,14 @@ import { View, Image, Pressable, ScrollView } from "react-native";
 import { Text, IconButton, ProgressBar } from 'react-native-paper';
 import { useRef } from "react";
 
-const MediaBar = ({ media=[], isSending=false, uploadProgress=0, thumbnailSize, removeItem }) => {
+const DEFAULT_STYLE = {
+	flexDirection: "row",
+	marginTop: 8,
+	alignItems: "center",
+	gap: 8,
+}
+
+const MediaBar = ({ style=DEFAULT_STYLE, media=[], isSending=false, uploadProgress=0, thumbnailSize, removeItem }) => {
 	// Reference Variables
 	// To keep track of scroll position when an item is removed
 	const scrollRef = useRef(null);
@@ -44,7 +51,7 @@ const MediaBar = ({ media=[], isSending=false, uploadProgress=0, thumbnailSize, 
 	}
 
 	return (
-		<View>
+		<View style={style}>
 			<ScrollView
 				ref={scrollRef}
 				horizontal
