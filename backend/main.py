@@ -255,7 +255,7 @@ def create_token(request: TokenRequest):
 
 # ----- WEBSOCKET ----- 
 
-async def send_to_clients(sender_token: str, event_type: str, payload: any, excluding=None):
+async def send_to_clients(sender_token: str, event_type: str, payload: any, exclude_token=None):
     # Lock the sender metadata to retreive username
     with metadata_locks.token(sender_token):
         sender_name = token_metadata[sender_token]["username"]
@@ -276,7 +276,7 @@ async def send_to_clients(sender_token: str, event_type: str, payload: any, excl
             continue
 
         # Skip the client, if they were the sender
-        if client is not excluding:
+        if client_token is not exclude_token:
             # Assemble the data to send
             data = {
                 "username": sender_name,
@@ -287,7 +287,7 @@ async def send_to_clients(sender_token: str, event_type: str, payload: any, excl
             await client.send_json(data)
     print(f"Sent to {len(client_tokens)} clients")
 
-async def send_file_to_clients(sender_token: str, file_name: str, file: dict, excluding=None):
+async def send_file_to_clients(sender_token: str, file_name: str, file: dict, exclude_token=None):
     # Send file data in chunks
     chunk_size = 1024 * 64  # 64KB chunks
     
@@ -326,7 +326,7 @@ async def send_file_to_clients(sender_token: str, file_name: str, file: dict, ex
             payload["algorithm"] = file["algorithm"]
 
         # Send the chunk to the client
-        await send_to_clients(sender_token, event_type, payload, excluding=excluding)
+        await send_to_clients(sender_token, event_type, payload, exclude_token)
 
         if (i // chunk_size) % 3 == 0:
             await asyncio.sleep(0)  # Yield to event loop
@@ -517,15 +517,13 @@ def handle_upload(token: str, data: dict):
 
         # Queue the next download
         asyncio.create_task(handle_download("message", (token, "message", payload), token)) #token
-        
-        # Don't exclude the sender, since I removed the logic from App
-        # asyncio.create_task(send_to_clients(token, "message", payload))
     # -----------------------
 
 @app.websocket("/ws/upload")
 async def upload_endpoint(websocket: WebSocket, token: str = Query(...)):
     # Validate token
     if not is_token_valid(token):
+        await websocket.accept()
         await websocket.close(code=1008, reason="Invalid or expired token")
         print("UPLOAD: Rejected connection: Invalid token")
         return
@@ -575,6 +573,7 @@ async def upload_endpoint(websocket: WebSocket, token: str = Query(...)):
 async def download_endpoint(websocket: WebSocket, token: str = Query(...)):
     # Validate token
     if not is_token_valid(token):
+        await websocket.accept()
         await websocket.close(code=1008, reason="Invalid or expired token")
         print("DOWNLOAD: Rejected connection: Invalid token")
         return
