@@ -170,7 +170,7 @@ export default function Chat() {
         // The mapped key value for this file
         const file_key = `${sender.padEnd(12, ' ').substring(0, 13).trim()}_${file_name}`;
         const file = downloads.current.get(file_key);
-        
+
         if (file) {
             // Write the next chunk into the buffer
             file.buffer.set(bytes, file.offset);
@@ -186,10 +186,10 @@ export default function Chat() {
             }
 
             // Set NON-BLOCKING timeout to cleanup stale downloads
-            // Wait for 30 seconds before removing temporary downloads
+            // Wait for 15 seconds before removing temporary downloads
             const timeoutId = setTimeout(() => {
                 const timeSinceUpdate = Date.now() - file.lastUpdated;
-                if (timeSinceUpdate >= 10000) {  // 10 seconds
+                if (timeSinceUpdate >= 10000) {  // Not updated in last 10 seconds
                     console.warn(`Download timeout for file: ${file_key}`);
                     downloads.current.delete(file_key);
                     downloadTimeouts.current.delete(file_key);
@@ -197,7 +197,7 @@ export default function Chat() {
                 else {
                     console.warn(`Still downloading file: ${file_key}`);
                 }
-            }, 30000);
+            }, 15000);
             
             downloadTimeouts.current.set(file_key, timeoutId);
         }
