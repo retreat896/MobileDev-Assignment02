@@ -61,11 +61,11 @@ export default function Chat() {
     const [messages, setMessages] = useState([]);
     // Queue of files to send
     const fileQueue = useRef([]);
-    // Keep track of files-sent progress
-    const bytesSentRef = useRef(0);
-    const totalSendBytesRef = useRef(0);
-    const [bytesSent, setBytesSent] = useState(0);
-    const [totalSendBytes, setTotalSendBytes] = useState(0);
+    // Keep track of files-upload progress
+    const bytesUploadRef = useRef(0);
+    const totalUploadBytesRef = useRef(0);
+    const [bytesUpload, setBytesSent] = useState(0);
+    const [totalUploadBytes, setTotalSendBytes] = useState(0);
     // Keep track of files-downloaded progress
     const downloadTimeouts = useRef(new Map());
     const bytesDownloadRef = useRef(0);
@@ -468,10 +468,10 @@ export default function Chat() {
         await sendPayload(event_type, payload);
 
         // Increment synchronously using ref
-        bytesSentRef.current += chunk.length; // Use actual chunk length, not CHUNK_SIZE
+        bytesUploadRef.current += chunk.length; // Use actual chunk length, not CHUNK_SIZE
         
         // Update state for UI
-        setBytesSent(bytesSentRef.current);
+        setBytesSent(bytesUploadRef.current);
 
         // Return the remaining content
         return bytes.subarray(CHUNK_SIZE);
@@ -484,8 +484,8 @@ export default function Chat() {
         // There are no files to send
         if (!fileQueue.current || fileQueue.current.length == 0) {
             // Clear the upload progress
-            totalSendBytesRef.current = 0;
-            bytesSentRef.current = 0;
+            totalUploadBytesRef.current = 0;
+            bytesUploadRef.current = 0;
             setTotalSendBytes(0);
             setBytesSent(0);
             return; // Quit
@@ -507,7 +507,7 @@ export default function Chat() {
             // Throttled UI updates (every 100ms)
             if (now - lastUIUpdate > 20) {
                 console.log("Updated UI");
-                setBytesSent(bytesSentRef.current);
+                setBytesSent(bytesUploadRef.current);
                 lastUIUpdate = now;
                 await new Promise(r => setTimeout(r, 0)); // Yield
             }
@@ -538,7 +538,7 @@ export default function Chat() {
         const file = new File(fileUris.pop());
         
         // Increment the total byte count synchronously
-        totalSendBytesRef.current += file.size;
+        totalUploadBytesRef.current += file.size;
         
         // Add the File to the file Queue
         fileQueue.current.push(file);
@@ -554,15 +554,15 @@ export default function Chat() {
         // Send attached files if any
         if (inputMedia.length > 0) {
             // Reset counters before starting
-            totalSendBytesRef.current = 0;
-            bytesSentRef.current = 0;
+            totalUploadBytesRef.current = 0;
+            bytesUploadRef.current = 0;
             setBytesSent(0);
             
             // Add the files to the queue (and calculate total bytes)
             await addFilesToQueue(...inputMedia);
             
             // Update state for UI with total
-            setTotalSendBytes(totalSendBytesRef.current);
+            setTotalSendBytes(totalUploadBytesRef.current);
             
             // Send the queued files
             await sendQueuedFiles();
@@ -660,8 +660,8 @@ export default function Chat() {
             <View style={styles.buttonRow}>
                 <MediaBar 
                     media={inputMedia}
-                    isSending={totalSendBytes > 0 && bytesSent < totalSendBytes}
-                    uploadProgress={totalSendBytes > 0 ? bytesSent / totalSendBytes : 0}
+                    isSending={totalUploadBytes > 0 && bytesUpload < totalUploadBytes}
+                    uploadProgress={totalUploadBytes > 0 ? bytesUpload / totalUploadBytes : 0}
                     thumbnailSize={120}
                     removeItem={(removed) => {
                         // Update the input

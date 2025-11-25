@@ -507,7 +507,7 @@ def handle_upload(token: str, data: dict):
 
         # Queue the next download
         # Send the complete file to all connected clients
-        asyncio.create_task(handle_download("file", (token, file_name, file), None)) #token
+        asyncio.create_task(handle_download("file", (token, file_name, file), token)) #token
     # --- MESSAGE HANDLING ---
     elif event_type == "message":
         text, timestamp = upload_message(event_type, payload, token)
@@ -516,7 +516,7 @@ def handle_upload(token: str, data: dict):
         payload = { "timestamp": timestamp, "text": text }
 
         # Queue the next download
-        asyncio.create_task(handle_download("message", (token, "message", payload), None)) #token
+        asyncio.create_task(handle_download("message", (token, "message", payload), token)) #token
         
         # Don't exclude the sender, since I removed the logic from App
         # asyncio.create_task(send_to_clients(token, "message", payload))
