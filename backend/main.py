@@ -275,9 +275,7 @@ async def send_to_clients(sender_token: str, event_type: str, payload: any, excl
         if not client or client.get("disconnected"):
             continue
 
-        print(f"Client: {client_token}")
-        print(f"Exclude: {exclude_token}")
-        # Skip the client, if they were excluded
+        # Skip the client, if they were the sender
         if client_token != exclude_token:
             # Assemble the data to send
             data = {
