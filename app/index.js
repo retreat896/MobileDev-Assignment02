@@ -60,7 +60,7 @@ export default function App() {
 					style={styles.input}
 					placeholder="Enter your name..."
 					value={username}
-					onChangeText={(text) => setUsername(text)}
+					onChangeText={(text) => setUsername(text.toUpperCase())}
 					onSubmitEditing={handleOpenChat}
 				/>
 				<Button mode="contained" onPress={handleOpenChat}>Send</Button>
