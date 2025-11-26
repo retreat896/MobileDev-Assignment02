@@ -561,8 +561,21 @@ export default function Chat() {
         // MUST FIX TO NOT QUEUE MULTIPLE SENDS
         // OTHERWISE FUCKED UP INSANE DUPLICATION
 
-        // Send attached files if any
-        if (inputMedia.length > 0) {
+        // A text message is queued
+        if (inputText.trim()) {
+            const textToSend = inputText.trim();
+
+            // Send the text message
+            await sendPayload("message", { text: textToSend });
+            setInputText("");
+
+            // Add the item to the chat
+            addClientMessage("message", textToSend);
+
+            // Exit the function if no files to send
+            if (inputMedia.length == 0) return;
+
+            // Send attached files if any
             // Reset counters before starting
             totalUploadBytesRef.current = 0;
             bytesUploadRef.current = 0;
@@ -576,18 +589,6 @@ export default function Chat() {
             
             // Send the queued files
             await sendQueuedFiles();
-        }
-
-        // A text message is queued
-        if (inputText.trim()) {
-            const textToSend = inputText.trim();
-
-            // Send the text message
-            await sendPayload("message", { text: textToSend });
-            setInputText("");
-
-            // Add the item to the chat
-            addClientMessage("message", textToSend);
         }
     };
 
